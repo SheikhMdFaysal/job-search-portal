@@ -1,4 +1,5 @@
 import { Shell } from "@/components/shell";
+import { ResumeUpload } from "@/components/resume-upload";
 
 export default function OnboardingPage() {
   return (
@@ -7,6 +8,7 @@ export default function OnboardingPage() {
         <p className="text-sm uppercase tracking-wide text-steel">Profile</p>
         <h1 className="mb-4 text-3xl font-semibold">Onboarding</h1>
         <form className="space-y-4 rounded-md border border-line bg-white p-5">
+          <ResumeUpload />
           <label className="block">
             <span className="text-sm font-medium">Target roles</span>
             <input className="mt-1 w-full rounded-md border border-line px-3 py-2" defaultValue="data analyst, business analyst, financial analyst" />

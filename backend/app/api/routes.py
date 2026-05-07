@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import shutil
 from datetime import datetime, timezone
+from pathlib import Path
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.integrations.page_metadata import capture_url
 from app.models import Application, Document, Job, Profile, User
@@ -28,6 +32,8 @@ from app.services.matching import analyze_interview_chance, score_job
 from app.services.resume_builder import render_resume_docx, tailor_resume
 
 router = APIRouter()
+
+ALLOWED_RESUME_EXTENSIONS = {".pdf", ".doc", ".docx"}
 
 
 def get_profile_or_404(db: Session) -> Profile:
@@ -70,6 +76,29 @@ def upsert_profile(payload: ProfileIn, db: Session = Depends(get_db)) -> Profile
 @router.get("/profile", response_model=ProfileOut)
 def read_profile(db: Session = Depends(get_db)) -> Profile:
     return get_profile_or_404(db)
+
+
+@router.post("/profile/resume-upload", response_model=dict[str, str])
+def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_db)) -> dict[str, str]:
+    extension = Path(file.filename or "").suffix.lower()
+    if extension not in ALLOWED_RESUME_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Upload a PDF, DOC, or DOCX resume.")
+
+    upload_dir = Path(settings.document_storage_dir) / "uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    safe_name = f"{uuid4().hex}{extension}"
+    path = upload_dir / safe_name
+
+    with path.open("wb") as output:
+        shutil.copyfileobj(file.file, output)
+
+    db.add(Document(type="master_resume_upload", path=str(path), related_application_id=None))
+    db.commit()
+    return {
+        "filename": file.filename or safe_name,
+        "document_path": str(path),
+        "message": "Resume uploaded. Structured resume parsing is the next onboarding step.",
+    }
 
 
 @router.post("/jobs", response_model=JobOut)

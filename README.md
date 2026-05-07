@@ -50,6 +50,7 @@ The original brief was good, but too large to build honestly in one pass. This s
 ## Core API
 
 - `PUT /api/profile` saves the single-user resume/profile/preferences.
+- `POST /api/profile/resume-upload` stores your master resume file as PDF, DOC, or DOCX.
 - `POST /api/jobs/ingest` pulls configured providers and scores jobs.
 - `POST /api/jobs/capture-url` stores a manually captured job URL.
 - `POST /api/applications` saves or marks a job.
