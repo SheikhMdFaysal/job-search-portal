@@ -1,0 +1,147 @@
+{
+  "name": "Job Hunt 3 — Application Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "event": "anyUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "id"
+        },
+        "options": {
+          "pollTimes": {
+            "item": [{ "mode": "everyMinute" }]
+          }
+        }
+      },
+      "id": "b2c3d4e5-0002-0002-0002-000000000001",
+      "name": "Sheet Updated",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "status-resume-ready",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "Resume Ready",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b2c3d4e5-0002-0002-0002-000000000002",
+      "name": "Resume Ready?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "sendTo": "sober.faysal@gmail.com",
+        "subject": "=Action Required: Apply to {{ $json.title }} at {{ $json.company }}",
+        "emailType": "html",
+        "message": "=<html>\n<body style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #f9fafb; margin: 0; padding: 20px;\">\n<div style=\"max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);\">\n\n  <div style=\"background: #1d4ed8; padding: 24px 32px;\">\n    <h1 style=\"color: white; margin: 0; font-size: 20px;\">Your Resume Is Ready to Submit</h1>\n    <p style=\"color: #bfdbfe; margin: 4px 0 0;\">Job Hunt AI Agent</p>\n  </div>\n\n  <div style=\"padding: 32px;\">\n    <h2 style=\"margin: 0 0 16px; font-size: 22px; color: #111827;\">{{ $json.title }}</h2>\n    <p style=\"margin: 0 0 24px; font-size: 16px; color: #374151;\">{{ $json.company }} &bull; {{ $json.location }}</p>\n\n    <table style=\"width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 14px;\">\n      <tr style=\"background: #f3f4f6;\">\n        <td style=\"padding: 10px 14px; font-weight: 600; color: #374151; width: 140px;\">Match Score</td>\n        <td style=\"padding: 10px 14px; color: #111827;\">{{ $json.matchScore }}/10</td>\n      </tr>\n      <tr>\n        <td style=\"padding: 10px 14px; font-weight: 600; color: #374151;\">Source</td>\n        <td style=\"padding: 10px 14px; color: #111827;\">{{ $json.source }}</td>\n      </tr>\n      <tr style=\"background: #f3f4f6;\">\n        <td style=\"padding: 10px 14px; font-weight: 600; color: #374151;\">Found</td>\n        <td style=\"padding: 10px 14px; color: #111827;\">{{ $json.dateFound }}</td>\n      </tr>\n    </table>\n\n    <div style=\"display: flex; gap: 12px; margin-bottom: 28px;\">\n      <a href=\"{{ $json.resumeDocUrl }}\" style=\"display: inline-block; background: #1d4ed8; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;\">View Tailored Resume</a>\n      <a href=\"{{ $json.url }}\" style=\"display: inline-block; background: #16a34a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;\">Apply Now</a>\n    </div>\n\n    <hr style=\"border: none; border-top: 1px solid #e5e7eb; margin-bottom: 20px;\">\n\n    <p style=\"margin: 0; font-size: 12px; color: #9ca3af;\">Sent automatically by your Job Hunt AI Agent &bull; n8n workflow</p>\n  </div>\n\n</div>\n</body>\n</html>",
+        "options": {}
+      },
+      "id": "b2c3d4e5-0002-0002-0002-000000000003",
+      "name": "Send Application Reminder",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "url": "={{ $('Sheet Updated').item.json.url }}",
+            "status": "Awaiting Submission",
+            "reminderSentAt": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": ["url"],
+          "schema": [
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "reminderSentAt",
+              "displayName": "reminderSentAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b2c3d4e5-0002-0002-0002-000000000004",
+      "name": "Update Sheet — Awaiting Submission",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Sheet Updated": {
+      "main": [[{ "node": "Resume Ready?", "type": "main", "index": 0 }]]
+    },
+    "Resume Ready?": {
+      "main": [[{ "node": "Send Application Reminder", "type": "main", "index": 0 }]]
+    },
+    "Send Application Reminder": {
+      "main": [[{ "node": "Update Sheet — Awaiting Submission", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,249 @@
+{
+  "name": "Job Hunt 2 — JD Analysis & Resume Tailoring",
+  "nodes": [
+    {
+      "parameters": {
+        "event": "rowAdded",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "id"
+        },
+        "options": {
+          "pollTimes": {
+            "item": [{ "mode": "everyHour" }]
+          }
+        }
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "name": "New Job Added",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "resume-master",
+              "name": "masterResume",
+              "value": "PASTE YOUR FULL MASTER RESUME TEXT HERE\n\nName: Your Name\nEmail: your@email.com\nPhone: +1 (555) 000-0000\nLinkedIn: linkedin.com/in/yourprofile\n\nPROFESSIONAL SUMMARY\nYour summary here...\n\nEXPERIENCE\nJob Title — Company (Year–Year)\n• Bullet 1\n• Bullet 2\n\nSKILLS\nSkill A, Skill B, Skill C\n\nEDUCATION\nDegree — University (Year)",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000002",
+      "name": "Master Resume",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000003",
+      "name": "Fetch Full JD",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $input.item.json.data || $input.item.json.body || String($input.item.json) || '';\nconst text = html\n  .replace(/<script[\\s\\S]*?<\\/script>/gi, '')\n  .replace(/<style[\\s\\S]*?<\\/style>/gi, '')\n  .replace(/<[^>]+>/g, ' ')\n  .replace(/&nbsp;/g, ' ')\n  .replace(/&amp;/g, '&')\n  .replace(/&lt;/g, '<')\n  .replace(/&gt;/g, '>')\n  .replace(/\\s+/g, ' ')\n  .trim()\n  .slice(0, 8000);\n\nconst prev = $('New Job Added').item.json;\nreturn [{ json: { ...prev, masterResume: $('Master Resume').item.json.masterResume, fullJD: text } }];",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000004",
+      "name": "Strip HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert resume writer and career coach.\n\nJOB TITLE: {{ $json.title }}\nCOMPANY: {{ $json.company }}\nLOCATION: {{ $json.location }}\n\nJOB DESCRIPTION (truncated to 8000 chars):\n{{ $json.fullJD }}\n\nMASTER RESUME:\n{{ $json.masterResume }}\n\nTailor the resume for this specific role. Return a JSON object with exactly these keys:\n- summary: 2-3 sentence professional summary optimised for this role and ATS\n- topSkills: array of 6-8 most relevant skills from the resume that match the JD\n- tailoredBullets: array of objects with keys 'role' (string) and 'bullets' (string[]) — rewrite experience bullets with JD keywords; max 4 bullets per role; include only top 2-3 roles\n- keywordsToAdd: array of important JD keywords not found in the resume\n- gaps: array of requirements the candidate doesn't clearly meet\n- coverLetter: a compelling 3-paragraph cover letter for this role",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000005",
+      "name": "Tailor Resume Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "model": "claude-sonnet-4-6",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000006",
+      "name": "Claude",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [980, 520]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"summary\": { \"type\": \"string\" },\n    \"topSkills\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },\n    \"tailoredBullets\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"role\": { \"type\": \"string\" },\n          \"bullets\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }\n        },\n        \"required\": [\"role\", \"bullets\"]\n      }\n    },\n    \"keywordsToAdd\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },\n    \"gaps\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },\n    \"coverLetter\": { \"type\": \"string\" }\n  },\n  \"required\": [\"summary\", \"topSkills\", \"tailoredBullets\", \"keywordsToAdd\", \"gaps\", \"coverLetter\"]\n}"
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000007",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [1260, 520]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\nconst src = $('New Job Added').item.json;\nconst output = item.output || {};\n\nconst lines = [];\nlines.push('TAILORED RESUME');\nlines.push('='.repeat(60));\nlines.push('');\nlines.push(`Position:  ${src.title || ''}`);\nlines.push(`Company:   ${src.company || ''}`);\nlines.push(`Location:  ${src.location || ''}`);\nlines.push('');\nlines.push('PROFESSIONAL SUMMARY');\nlines.push('-'.repeat(40));\nlines.push(output.summary || '');\nlines.push('');\nlines.push('KEY SKILLS');\nlines.push('-'.repeat(40));\n(output.topSkills || []).forEach(s => lines.push(`• ${s}`));\nlines.push('');\nlines.push('EXPERIENCE');\nlines.push('-'.repeat(40));\n(output.tailoredBullets || []).forEach(role => {\n  lines.push(role.role);\n  (role.bullets || []).forEach(b => lines.push(`  • ${b}`));\n  lines.push('');\n});\nif ((output.keywordsToAdd || []).length > 0) {\n  lines.push('KEYWORDS TO INCORPORATE (ATS boost)');\n  lines.push('-'.repeat(40));\n  lines.push((output.keywordsToAdd || []).join(', '));\n  lines.push('');\n}\nif ((output.gaps || []).length > 0) {\n  lines.push('GAPS / AREAS TO ADDRESS IN INTERVIEW');\n  lines.push('-'.repeat(40));\n  (output.gaps || []).forEach(g => lines.push(`• ${g}`));\n  lines.push('');\n}\nlines.push('');\nlines.push('COVER LETTER');\nlines.push('='.repeat(60));\nlines.push(output.coverLetter || '');\n\nreturn [{ json: { ...src, resumeText: lines.join('\\n') } }];",
+        "mode": "runOnceForEachItem"
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000008",
+      "name": "Build Resume Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "create",
+        "title": "=Resume — {{ $json.title }} @ {{ $json.company }} ({{ $now.format('yyyy-MM-dd') }})"
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000009",
+      "name": "Create Google Doc",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "update",
+        "documentURL": "={{ $json.id }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $('Build Resume Text').item.json.resumeText }}",
+              "indexOffset": 1
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000010",
+      "name": "Insert Resume Text",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "url": "={{ $('New Job Added').item.json.url }}",
+            "status": "Resume Ready",
+            "resumeDocUrl": "=https://docs.google.com/document/d/{{ $('Create Google Doc').item.json.id }}/edit"
+          },
+          "matchingColumns": ["url"],
+          "schema": [
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "resumeDocUrl",
+              "displayName": "resumeDocUrl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000011",
+      "name": "Update Sheet — Resume Ready",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [2000, 300]
+    }
+  ],
+  "connections": {
+    "New Job Added": {
+      "main": [[{ "node": "Master Resume", "type": "main", "index": 0 }]]
+    },
+    "Master Resume": {
+      "main": [[{ "node": "Fetch Full JD", "type": "main", "index": 0 }]]
+    },
+    "Fetch Full JD": {
+      "main": [[{ "node": "Strip HTML", "type": "main", "index": 0 }]]
+    },
+    "Strip HTML": {
+      "main": [[{ "node": "Tailor Resume Agent", "type": "main", "index": 0 }]]
+    },
+    "Tailor Resume Agent": {
+      "main": [[{ "node": "Build Resume Text", "type": "main", "index": 0 }]]
+    },
+    "Claude": {
+      "ai_languageModel": [[{ "node": "Tailor Resume Agent", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [[{ "node": "Tailor Resume Agent", "type": "ai_outputParser", "index": 0 }]]
+    },
+    "Build Resume Text": {
+      "main": [[{ "node": "Create Google Doc", "type": "main", "index": 0 }]]
+    },
+    "Create Google Doc": {
+      "main": [[{ "node": "Insert Resume Text", "type": "main", "index": 0 }]]
+    },
+    "Insert Resume Text": {
+      "main": [[{ "node": "Update Sheet — Resume Ready", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
